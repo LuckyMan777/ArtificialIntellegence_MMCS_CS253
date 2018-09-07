@@ -2,12 +2,14 @@
 #include<iostream>
 #include<ctime>
 #include<functional>
+#include<vector>
+#include<algorithm>
 
 using namespace std;
 
 
 int a = 2;
-int b = 10000;
+int b = 500;
 
 class node
 {
@@ -52,17 +54,16 @@ void print_path(node* leaf)
 
 	for (auto it = nums.begin(); it != nums.end(); ++it)
 	{
-		cout << *it << " ";
+		std::cout << *it << " ";
 	}
 	cout << endl << nums.size() << endl;
 }
 
-void task1()
+node* last_leaf = nullptr;
+size_t len_queue;
+
+void min_path(int a, int b, vector<function<int (int)>> functions)
 {
-	cout << "				----- task1----- " << endl;
-
-	unsigned int start_time = clock(); 
-
 	list<node*> ln;
 	node* n1 = new node(a);
 	ln.push_back(n1);
@@ -74,31 +75,36 @@ void task1()
 		node* pred = curr_n;
 		if (curr_n->num == b)
 		{
-			print_path(curr_n);
+			last_leaf = curr_n;
+			len_queue = ln.size();
 			break;
 		}
-		node* nplus3 = new node(curr_n->num + 3, pred);
-		node* nprod2 = new node(curr_n->num * 2, pred);
-		ln.push_back(nplus3);
-		ln.push_back(nprod2);
+		for (auto f : functions)
+		{
+			node* nf = new node(f(curr_n->num), pred);
+			ln.push_back(nf);
+		}
 	}
+}
+
+void min_path_time(int a, int b, vector<function<int(int)>> functions)
+{
+	unsigned int start_time = clock();
+
+	min_path(a, b, functions);
 
 	unsigned int end_time = clock(); // конечное время
-	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC; 
 
-	cout << endl << search_time << endl;
+	print_path(last_leaf);
+	cout << endl << "len_queue = " << len_queue << endl;
 
-	system("pause");
+	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
+	cout << "time = " << search_time << endl;
 }
 
 
-
-void task2()
+void min_path_unique(int a, int b, vector<function<int(int)>> functions)
 {
-	cout << "				----- task2----- " << endl;
-
-	unsigned int start_time = clock();
-
 	list<node*> ln;
 	node* n1 = new node(a);
 	ln.push_back(n1);
@@ -110,27 +116,67 @@ void task2()
 		node* pred = curr_n;
 		if (curr_n->num == b)
 		{
-			print_path(curr_n);
+			last_leaf = curr_n;
+			len_queue = ln.size();
 			break;
 		}
-		node* nplus3 = new node(curr_n->num + 3, pred);
-		node* nprod2 = new node(curr_n->num * 2, pred);
-		node* nminus2 = new node(curr_n->num - 2, pred);
-		ln.push_back(nplus3);
-		ln.push_back(nprod2);
-		ln.push_back(nminus2);
+		for (auto f : functions)
+		{
+			node* nf = new node(f(curr_n->num), pred);
+			
+			auto it = adjacent_find(ln.begin(), ln.end(), 
+				[nf](node* n1, node* n2) {return n1->num == nf->num || n2->num == nf->num; });
+			if (it == ln.end())
+			{
+				ln.push_back(nf);
+			}
+		}
 	}
+}
+
+void min_path_unique_time(int a, int b, vector<function<int(int)>> functions)
+{
+	unsigned int start_time = clock();
+
+	min_path_unique(a, b, functions);
 
 	unsigned int end_time = clock(); // конечное время
+
+	print_path(last_leaf);
+	cout << endl << "len_queue = " << len_queue << endl;
+
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
-
-	cout << endl << search_time << endl;
-
-	system("pause");
+	cout << "time = " << search_time << endl;
 }
 
 int main()
 {
-	task1();
-	task2();
+	vector<function<int(int)>> v1;
+	v1.push_back([](int x) {return x * 2; });
+	v1.push_back([](int x) {return x + 3; });
+
+	cout << "				----- task1 ----- " << endl;
+	min_path_time(a, b, v1);
+	
+	cout << "				----- task1 unique ----- " << endl;
+	min_path_unique_time(a, b, v1);
+
+	v1.push_back([](int x) {return x - 2; });
+	cout << "				----- task2 ----- " << endl;
+	min_path_time(a, b, v1);
+
+	cout << "				----- task2 unique ----- " << endl;
+	min_path_unique_time(a, b, v1);
+
+	vector<function<int(int)>> v2;
+	v2.push_back([](int x) {return x / 2; });
+	v2.push_back([](int x) {return x - 3; });
+
+	cout << "				----- task3 ----- " << endl;
+	min_path_time(b, a, v2);
+
+	cout << "				----- task3 unique ----- " << endl;
+	min_path_unique_time(b, a, v2);
+
+	system("pause");
 }
