@@ -246,23 +246,26 @@ int main()
 	int a = 2;
 	int b = 1000;
 
+	cout << "a = " << a << endl;
+	cout << "b = " << b << endl;
+
 	vector<function<int(int)>> v1;
 	v1.push_back([](int x) {return x * 2; });
 	v1.push_back([](int x) {return x + 3; });
 
-	cout << "				----- basic operations search up ----- " << endl;
+	cout << "				----- basic operations | search up ----- " << endl;
 	min_path_time(a, b, v1);
 	
-	cout << "				----- basic operations search up unique ----- " << endl;
+	cout << "				----- basic operations | search up | unique ----- " << endl;
 	min_path_unique_time(a, b, v1);
 
 
 
 	v1.push_back([](int x) {return x - 2; });
-	cout << "				----- basic operations + 'x->x-2' search up ----- " << endl;
+	cout << "				----- basic operations + 'x->x-2' | search up ----- " << endl;
 	min_path_time(a, b, v1);
 
-	cout << "				----- basic operations + 'x->x-2' search up unique ----- " << endl;
+	cout << "				----- basic operations + 'x->x-2' | search up | unique ----- " << endl;
 	min_path_unique_time(a, b, v1);
 	v1.pop_back();
 
@@ -272,14 +275,14 @@ int main()
 	v2.push_back([](int x) {return x % 2 == 0? x / 2: x - 3; });
 	v2.push_back([](int x) {return x - 3; });
 
-	cout << "				----- basic operations search down ----- " << endl;
+	cout << "				----- basic operations | search down ----- " << endl;
 	min_path_time(b, a, v2);
 
-	cout << "				----- basic operations search down unique ----- " << endl;
+	cout << "				----- basic operations | search down | unique ----- " << endl;
 	min_path_unique_time(b, a, v2);
 
 
-	cout << "				----- bidirectional search ----- " << endl;
+	cout << "				----- basic operations | bidirectional search ----- " << endl;
 	min_path_bidirectional_time(a, b, v1, v2);
 
 	system("pause");
