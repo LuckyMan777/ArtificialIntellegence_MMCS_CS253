@@ -204,7 +204,7 @@ void min_path_bidirectional(int a, int b, vector<function<int(int)>> functions_u
 	{
 		if (founded)
 			break;
-		k *= 2;
+		
 		node* curr_n_up = lnup.front();
 		lnup.pop_front();
 		node* pred_up = curr_n_up;
@@ -223,10 +223,10 @@ void min_path_bidirectional(int a, int b, vector<function<int(int)>> functions_u
 			lndown.push_back(nf);
 		}
 
-		for (auto itup = prev(lnup.end(), min(lnup.size(), functions_up.size()*k)); itup != lnup.end(); ++itup)
+		for (auto itup = lnup.begin(); itup != lnup.end(); ++itup)
 		{
 			node* nup = *itup;
-			auto itdown = find_if(prev(lndown.end(), min(lndown.size(), functions_down.size()*k)), lndown.end(),
+			auto itdown = find_if(lndown.begin(), lndown.end(),
 				[nup](node* n) {return n->num == nup->num; });
 			if (itdown != lndown.end())
 			{
@@ -238,6 +238,7 @@ void min_path_bidirectional(int a, int b, vector<function<int(int)>> functions_u
 				break;
 			}
 		}
+		k *= 2;
 	}
 }
 
@@ -376,7 +377,7 @@ void min_path_bidirectional_unique_time(int a, int b,
 int main()
 {
 	int a = 2;
-	int b = 1600;
+	int b = 1000000000;
 
 	cout << "a = " << a << endl;
 	cout << "b = " << b << endl;
@@ -389,18 +390,18 @@ int main()
 	//min_path_time(a, b, v1);
 	
 	cout << "				----- basic operations | search up | unique ----- " << endl;
-	min_path_unique_time(a, b, v1);
+	//min_path_unique_time(a, b, v1);
 
 
-	/*
+	
 	v1.push_back([](int x) {return x - 2; });
-	cout << "				----- basic operations + 'x->x-2' | search up ----- " << endl;
-	min_path_time(a, b, v1);
+	//cout << "				----- basic operations + 'x->x-2' | search up ----- " << endl;
+	//min_path_time(a, b, v1);
 
 	cout << "				----- basic operations + 'x->x-2' | search up | unique ----- " << endl;
-	min_path_unique_time(a, b, v1);
+	//min_path_unique_time(a, b, v1);
 	v1.pop_back();
-	*/
+
 
 
 	vector<function<int(int)>> v2;
@@ -414,9 +415,9 @@ int main()
 	min_path_unique_time(b, a, v2);
 
 
-	cout << "				----- basic operations | bidirectional search ----- " << endl;
-	min_path_bidirectional_time(a, b, v1, v2);
-
+	//cout << "				----- basic operations | bidirectional search ----- " << endl;
+	//min_path_bidirectional_time(a, b, v1, v2);
+	
 	cout << "				----- basic operations | bidirectional search | unique ----- " << endl;
 	min_path_bidirectional_unique_time(a, b, v1, v2, false);
 
