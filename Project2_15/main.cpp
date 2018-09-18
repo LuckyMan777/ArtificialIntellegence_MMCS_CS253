@@ -5,6 +5,8 @@
 #include<vector>
 #include<algorithm>
 #include<queue>
+#include<iterator>
+#include<string>
 
 using namespace std;
 
@@ -18,9 +20,11 @@ public:
 	Board* prev;
 
 	//—колько чисел сто€т не на своих позици€х
-	int h;
+	int h = 0;
 	//—колько шагов было сделано дл€ получени€ текущей позиции
-	int steps;
+	int steps = 0;
+	//Manhattan distance
+	int manh = 0;
 
 	Board()
 	{
@@ -38,7 +42,6 @@ public:
 	{
 		this->board.resize(16);
 		h = 0;
-
 		for (int i = 0; i < board.size(); ++i)
 		{
 			this->board[i] = board[i];
@@ -51,13 +54,33 @@ public:
 			{
 				if (board[i] != i + 1)
 					++h;
+				manh += abs(board[i] % 4 - (i + 1) % 4);
+				manh += abs(board[i] / 4 - (i + 1) / 4);
 			}
 		}
+	}
+
+	bool have_solution()
+	{
+		int sum = 0;
+
+		for (auto it = board.begin(); it != std::prev(board.end(), 1); ++it)
+		{
+			sum += count_if(next(it, 1), board.end(),
+				[it](int i) {return i !=0 && *it > i; });
+		}
+
+		return (sum % 2 == 0);
 	}
 
 	int weight()
 	{
 		return steps + h;
+	}
+
+	int weightManh()
+	{
+		return steps + manh;
 	}
 
 	void printBoard()
@@ -80,17 +103,34 @@ public:
 		cout << "h = " << h << endl;
 	}
 
+	void printSteps()
+	{
+		cout << "steps = " << steps << endl;
+	}
+
+	void printManh()
+	{
+		cout << "manh = " << manh << endl;
+	}
+
 	void printWeight()
 	{
 		cout << "weight = " << weight() << endl;
 	}
 
-	void printAll()
+	void printWeightManh()
 	{
-		printBoard();
+		cout << "weightManh = " << weightManh() << endl;
+	}
+
+	void printInfo()
+	{
 		printZeroPos();
 		printH();
+		printSteps();
+		printManh();
 		printWeight();
+		printWeightManh();
 		cout << endl;
 	}
 
@@ -103,12 +143,18 @@ public:
 	{
 		if (zeroY != 0)
 		{
+			manh -= abs(board[zeroPos() - 4] / 4 - (zeroPos() - 3) / 4);
+			manh -= abs(board[zeroPos() - 4] % 4 - (zeroPos() - 3) % 4);
+
 			swap(board[zeroPos()], board[zeroPos()-4]);
 			
 			if (board[zeroPos()] == (zeroPos() + 1))
 				--h;
 			else
 				++h;
+
+			manh += abs(board[zeroPos()] / 4 - (zeroPos() + 1) / 4);
+			manh += abs(board[zeroPos()] % 4 - (zeroPos() + 1) % 4);
 
 			zeroY -= 1;
 			return true;
@@ -120,12 +166,18 @@ public:
 	{
 		if (zeroY != 3)
 		{
+			manh -= abs(board[zeroPos() + 4] / 4 - (zeroPos() + 5) / 4);
+			manh -= abs(board[zeroPos() + 4] % 4 - (zeroPos() + 5) % 4);
+
 			swap(board[zeroPos()], board[zeroPos() + 4]);
 
 			if (board[zeroPos()] == (zeroPos() + 1))
 				--h;
 			else
 				++h;
+
+			manh += abs(board[zeroPos()] / 4 - (zeroPos() + 1) / 4);
+			manh += abs(board[zeroPos()] % 4 - (zeroPos() + 1) % 4);
 
 			zeroY += 1;
 			return true;
@@ -137,12 +189,18 @@ public:
 	{
 		if (zeroX != 0)
 		{
+			manh -= abs(board[zeroPos() - 1] / 4 - (zeroPos()) / 4);
+			manh -= abs(board[zeroPos() - 1] % 4 - (zeroPos()) % 4);
+
 			swap(board[zeroPos()], board[zeroPos() - 1]);
 
 			if (board[zeroPos()] == (zeroPos() + 1))
 				--h;
 			else
 				++h;
+
+			manh += abs(board[zeroPos()] / 4 - (zeroPos() + 1) / 4);
+			manh += abs(board[zeroPos()] % 4 - (zeroPos() + 1) % 4);
 
 			zeroX -= 1;
 			return true;
@@ -154,12 +212,18 @@ public:
 	{
 		if (zeroX != 3)
 		{
+			manh -= abs(board[zeroPos() + 1] / 4 - (zeroPos() + 2) / 4);
+			manh -= abs(board[zeroPos() + 1] % 4 - (zeroPos() + 2) % 4);
+
 			swap(board[zeroPos()], board[zeroPos() + 1]);
 
 			if (board[zeroPos()] == (zeroPos() + 1))
 				--h;
 			else
 				++h;
+
+			manh += abs(board[zeroPos()] / 4 - (zeroPos() + 1) / 4);
+			manh += abs(board[zeroPos()] % 4 - (zeroPos() + 1) % 4);
 
 			zeroX += 1;
 			return true;
@@ -324,6 +388,62 @@ void aStarSolution(Board* b)
 		cout << endl << "-----------	error	----------" << endl << endl;
 }
 
+void idaStarSolution(Board* b2)
+{
+	b2->steps = 0;
+	bool founded = false;
+
+	for (int depth = 2; depth < 50; ++depth)
+	{
+		if (founded)
+			break;
+		//cout << "Max depth = " << depth << endl;
+
+		Board* b = new Board(b2->board);
+		priority_queue<Board*, vector<Board*>, std::function<bool(Board*, Board*)>> pq(comp);
+		pq.push(b);
+
+		
+
+		while (!pq.empty())
+		{
+			if (founded)
+				break;
+
+			Board* pb = pq.top();
+			pq.pop();
+
+			if (pb->h == 0)
+			{
+				last_b = pb;
+				list_len = pq.size();
+				break;
+			}
+
+			for (int i = 0; i < 4; ++i)
+			{
+				Board* b2 = new Board(pb->board);
+				b2->moveByInt(i);
+				b2->prev = pb;
+				b2->steps = pb->steps + 1;
+
+				if (b2->h == 0)
+				{
+					last_b = b2;
+					list_len = pq.size();
+					founded = true;
+					break;
+				}
+
+				if (b2->steps < depth)
+					pq.push(b2);
+			}
+		}
+		//if (pq.empty() && !founded)
+			//cout << endl << "	not founded on this step" << endl << endl;
+	}
+}
+
 void printSolution()
 {
 	list<Board*> ln;
@@ -336,7 +456,10 @@ void printSolution()
 
 	cout << "			weight = " << ln.front()->weight() << endl << endl;
 	for (Board* b : ln)
-		b->printAll();
+	{
+		b->printInfo();
+		b->printBoard();
+	}
 	cout << "			---------------------			" << endl;
 }
 
@@ -381,6 +504,23 @@ void aStarSolutionTime(Board* b, bool print_solution)
 
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for aStar solving =	" << search_time << endl;
+	cout << "Solution length = " << last_b->steps << endl;
+
+	printLen();
+
+	if (print_solution)
+		printSolution();
+}
+
+void idaStarSolutionTime(Board* b, bool print_solution)
+{
+	unsigned int start_time = clock();
+	idaStarSolution(b);
+	unsigned int end_time = clock();
+
+	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
+	cout << "time for idaStar solving =	" << search_time << endl;
+	cout << "Solution length = " << last_b->steps << endl;
 
 	printLen();
 
@@ -394,11 +534,18 @@ int main()
 	Board* b = createTaskTime(10);
 
 	vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+
 	Board* b2 = new Board(v1);
+	if (b2->have_solution())
+	{
+		simpleSolutionTime(b, true);
 
-	simpleSolutionTime(b, true);
+		aStarSolutionTime(b, true);
 
-	aStarSolutionTime(b, true);
+		idaStarSolutionTime(b, true);
+	}
+	else
+		cout << "No solution\n";
 
 	system("pause");
 }
