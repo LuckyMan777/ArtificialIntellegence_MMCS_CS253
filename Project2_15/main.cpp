@@ -7,6 +7,7 @@
 #include<queue>
 #include<iterator>
 #include<string>
+#include<set>
 
 using namespace std;
 
@@ -288,8 +289,10 @@ bool operator == (const Board& b1, const Board& b2)
 
 Board* createTask(int cnt_steps)
 {
+	set<vector<int>> used;
 	Board* b = new Board();
 	int k = 0;
+	used.insert(b->board);
 
 	while(true)
 	{
@@ -299,10 +302,18 @@ Board* createTask(int cnt_steps)
 		int r = rand() % 4;
 		for (int i = 0; i < 4; ++i)
 		{
-			if (b->moveByInt((r + i) % 4))
+			Board* b2 = new Board(b->board);
+			if (b2->moveByInt((r + i) % 4))
 			{
-				++k;
-				break;
+				auto it = used.find(b2->board);
+				if (it == used.end())
+				{
+					delete b;
+					b = b2;
+					used.insert(b->board);
+					++k;
+					break;
+				}
 			}
 		}
 	}
@@ -315,7 +326,9 @@ size_t list_len;
 void simpleSolution(Board* b)
 {
 	list<Board*> ln;
+	set<vector<int>> used;
 	ln.push_back(b);
+	used.insert(b->board);
 
 	bool founded = false;
 
@@ -348,7 +361,12 @@ void simpleSolution(Board* b)
 				break;
 			}
 
-			ln.push_back(b2);
+			auto it = used.find(b2->board);
+			if (it == used.end())
+			{
+				ln.push_back(b2);
+				used.insert(b2->board);
+			}
 		}
 	}
 }
@@ -359,6 +377,8 @@ void aStarSolution(Board* b, function<bool(Board*, Board*)> compBoards)
 
 	priority_queue<Board*, vector<Board*>, std::function<bool(Board*, Board*)>> pq(compBoards);
 	pq.push(b);
+	set<vector<int>> used;
+	used.insert(b->board);
 
 	bool founded = false;
 
@@ -392,70 +412,75 @@ void aStarSolution(Board* b, function<bool(Board*, Board*)> compBoards)
 				break;
 			}
 
-			pq.push(b2);
+			auto it = used.find(b2->board);
+			if (it == used.end())
+			{
+				pq.push(b2);
+				used.insert(b2->board);
+			}
 		}
 	}
 	if (pq.empty() && !founded)
 		cout << endl << "-----------	error	----------" << endl << endl;
 }
 
-void idaStarSolution(Board* b2, int max_depth, function<bool(Board*, Board*)> cmpBoards)
+void idaStarSolution(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight)
 {
 	b2->steps = 0;
 	bool founded = false;
 
-	for (int depth = 2; depth < 50; ++depth)
+	//cout << "curr max depth = " << depth << endl;
+
+	Board* b = new Board(b2->board);
+	priority_queue<Board*, vector<Board*>, std::function<bool(Board*, Board*)>> pq(cmpBoards);
+	pq.push(b);
+	set<vector<int>> used;
+	used.insert(b->board);
+
+	while (!pq.empty())
 	{
 		if (founded)
 			break;
-		//cout << "curr max depth = " << depth << endl;
 
-		Board* b = new Board(b2->board);
-		priority_queue<Board*, vector<Board*>, std::function<bool(Board*, Board*)>> pq(cmpBoards);
-		pq.push(b);
+		Board* pb = pq.top();
+		pq.pop();
 
-		
-
-		while (!pq.empty())
+		if (pb->h == 0)
 		{
-			if (founded)
-				break;
+			last_b = pb;
+			list_len = pq.size();
+			break;
+		}
 
-			Board* pb = pq.top();
-			pq.pop();
+		for (int i = 0; i < 4; ++i)
+		{
+			Board* b2 = new Board(pb->board);
+			b2->moveByInt(i);
+			b2->prev = pb;
+			b2->steps = pb->steps + 1;
 
-			if (pb->h == 0)
+			if (b2->h == 0)
 			{
-				last_b = pb;
+				last_b = b2;
 				list_len = pq.size();
+				founded = true;
 				break;
 			}
 
-			for (int i = 0; i < 4; ++i)
+			auto it = used.find(b2->board);
+			if (it == used.end() && weight(b2) < max_bound)
 			{
-				Board* b2 = new Board(pb->board);
-				b2->moveByInt(i);
-				b2->prev = pb;
-				b2->steps = pb->steps + 1;
-
-				if (b2->h == 0)
-				{
-					last_b = b2;
-					list_len = pq.size();
-					founded = true;
-					break;
-				}
-
-				if (b2->steps < depth)
-					pq.push(b2);
+				pq.push(b2);
+				used.insert(b2->board);
 			}
 		}
-		//if (pq.empty() && !founded)
-			//cout << endl << "	not founded on this step" << endl << endl;
 	}
+			//if (pq.empty() && !founded)
+			//cout << endl << "	not founded on this step" << endl << endl;
+	
 }
 
-void printSolution()
+void printSolution(bool print_board, bool print_info)
 {
 	list<Board*> ln;
 
@@ -467,8 +492,10 @@ void printSolution()
 
 	for (Board* b : ln)
 	{
-		b->printInfo();
-		b->printBoard();
+		if (print_info)
+			b->printInfo();
+		if (print_board)
+			b->printBoard();
 	}
 	cout << "			---------------------			" << endl;
 }
@@ -492,7 +519,7 @@ Board* createTaskTime(int complexity)
 	return b;
 }
 
-void simpleSolutionTime(Board* b, bool print_solution)
+void simpleSolutionTime(Board* b, bool print_boards, bool print_info)
 {
 	unsigned int start_time = clock();
 	simpleSolution(b);
@@ -501,12 +528,11 @@ void simpleSolutionTime(Board* b, bool print_solution)
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for simple solving =	" << search_time << endl;
 
-	printLen();
-	if (print_solution)
-		printSolution();
+	//printLen();
+	printSolution(print_boards, print_info);
 }
 
-void aStarSolutionTime(Board* b, function<bool(Board*, Board*)> cmpBoards, bool print_solution)
+void aStarSolutionTime(Board* b, function<bool(Board*, Board*)> cmpBoards, bool print_boards, bool print_info)
 {
 	unsigned int start_time = clock();
 	aStarSolution(b, cmpBoards);
@@ -516,26 +542,28 @@ void aStarSolutionTime(Board* b, function<bool(Board*, Board*)> cmpBoards, bool 
 	cout << "time for aStar solving =	" << search_time << endl;
 	cout << "Solution length = " << last_b->steps << endl;
 
-	printLen();
+	//printLen();
 
-	if (print_solution)
-		printSolution();
+	printSolution(print_boards, print_info);
 }
 
-void idaStarSolutionTime(Board* b, int max_depth, function<bool(Board*, Board*)> cmpBoards, bool print_solution)
+void idaStarSolutionTime(Board* b, int max_bound, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight, 
+	bool print_boards, bool print_info)
 {
 	unsigned int start_time = clock();
-	idaStarSolution(b, max_depth, cmpBoards);
+	idaStarSolution(b, max_bound, cmpBoards, weight);
 	unsigned int end_time = clock();
 
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for idaStar solving =	" << search_time << endl;
-	cout << "Solution length = " << last_b->steps << endl;
+	if (last_b == nullptr)
+		cout << "No solution for bound = " << max_bound << endl;
+	else
+		cout << "Solution length = " << last_b->steps << endl;
 
-	printLen();
+	//printLen();
 
-	if (print_solution)
-		printSolution();
+	printSolution(print_boards, print_info);
 }
 
 bool compH(Board* b1, Board* b2)
@@ -553,10 +581,19 @@ bool compManhH(Board* b1, Board* b2)
 	return b1->weightManhH() > b2->weightManhH();
 }
 
+void runCmpBy(Board* b, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight, 
+	int max_bound, bool print_boards, bool print_info)
+{
+	aStarSolutionTime(b, cmpBoards, print_boards, print_info);
+	idaStarSolutionTime(b, max_bound, cmpBoards, weight, print_boards, print_info);
+}
+
 int main()
 {
-	
-	Board* b = createTaskTime(20);
+	int max_bound = 50;
+	int complexity = 45;
+
+	Board* b = createTaskTime(complexity);
 
 	vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
 	//vector<int> v1{ 10, 6, 4, 13, 8, 11, 3, 9, 1, 5, 14, 12, 0, 2, 15, 7 };
@@ -565,19 +602,17 @@ int main()
 	
 	if (b2->have_solution())
 	{
-		//simpleSolutionTime(b, true);
+		//simpleSolutionTime(b, false, false);
 
 		cout << endl << "					-----	Cmp by H" << endl;
-		aStarSolutionTime(b, compH, true);
-		idaStarSolutionTime(b, 20, compH, true);
-
+		//runCmpBy(b, compH, [](Board* b) {return b->weightH(); }, max_bound, false, false);
+		
 		cout << endl << "					-----	Cmp by Manh" << endl;
-		aStarSolutionTime(b, compManh, true);
-		idaStarSolutionTime(b, 20, compManh, true);
+		runCmpBy(b, compManh, [](Board* b) {return b->weightManh(); }, max_bound, false, false);
+		
+		//cout << endl << "					-----	Cmp by ManhH" << endl;
+		//runCmpBy(b, compManhH, [](Board* b) {return b->weightManhH(); }, max_bound, false, false);
 
-		cout << endl << "					-----	Cmp by ManhH" << endl;
-		aStarSolutionTime(b, compManhH, true);
-		idaStarSolutionTime(b, 20, compManhH, true);
 
 		b->printBoard();
 		b->printInfo();
@@ -590,2051 +625,7 @@ int main()
 
 
 /*
-complexity = 17
 
-time for create task =  0
 
-time for simple solving =       1.591
-		list length = 2034671
-x = 2 | y = 3
-h = 13
-steps = 0
-manh = 11
-weight = 13
-weightManh = 11
-weightManhH = 24
 
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 0
-manh = 10
-weight = 10
-weightManh = 10
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 0
-manh = 9
-weight = 9
-weightManh = 9
-weightManhH = 18
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 0
-manh = 8
-weight = 8
-weightManh = 8
-weightManhH = 16
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 0
-manh = 7
-weight = 7
-weightManh = 7
-weightManhH = 14
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 0
-manh = 6
-weight = 6
-weightManh = 6
-weightManhH = 12
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 0
-manh = 5
-weight = 5
-weightManh = 5
-weightManhH = 10
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 0
-manh = 4
-weight = 4
-weightManh = 4
-weightManhH = 8
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 0
-manh = 3
-weight = 3
-weightManh = 3
-weightManhH = 6
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 0
-manh = 2
-weight = 2
-weightManh = 2
-weightManhH = 4
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 0
-manh = 1
-weight = 1
-weightManh = 1
-weightManhH = 2
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 0
-manh = 0
-weight = 0
-weightManh = 0
-weightManhH = 0
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-
-				-----   Cmp by H
-time for aStar solving =        0.001
-Solution length = 11
-		list length = 32
-x = 2 | y = 3
-h = 13
-steps = 0
-manh = 11
-weight = 13
-weightManh = 11
-weightManhH = 24
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      1.07
-Solution length = 11
-		list length = 30
-x = 2 | y = 3
-h = 11
-steps = 0
-manh = 11
-weight = 11
-weightManh = 11
-weightManhH = 22
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-
-				-----   Cmp by Manh
-time for aStar solving =        0
-Solution length = 11
-		list length = 32
-x = 2 | y = 3
-h = 13
-steps = 0
-manh = 11
-weight = 13
-weightManh = 11
-weightManhH = 24
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      1.084
-Solution length = 11
-		list length = 30
-x = 2 | y = 3
-h = 11
-steps = 0
-manh = 11
-weight = 11
-weightManh = 11
-weightManhH = 22
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-
-				-----   Cmp by ManhH
-time for aStar solving =        0
-Solution length = 11
-		list length = 32
-x = 2 | y = 3
-h = 13
-steps = 0
-manh = 11
-weight = 13
-weightManh = 11
-weightManhH = 24
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      1.128
-Solution length = 11
-		list length = 30
-x = 2 | y = 3
-h = 11
-steps = 0
-manh = 11
-weight = 11
-weightManh = 11
-weightManhH = 22
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 1 | y = 3
-h = 10
-steps = 1
-manh = 10
-weight = 11
-weightManh = 11
-weightManhH = 21
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      0       15      12
-x = 0 | y = 3
-h = 9
-steps = 2
-manh = 9
-weight = 11
-weightManh = 11
-weightManhH = 20
-
-5       1       2       3
-9       6       7       4
-13      10      11      8
-0       14      15      12
-x = 0 | y = 2
-h = 8
-steps = 3
-manh = 8
-weight = 11
-weightManh = 11
-weightManhH = 19
-
-5       1       2       3
-9       6       7       4
-0       10      11      8
-13      14      15      12
-x = 0 | y = 1
-h = 7
-steps = 4
-manh = 7
-weight = 11
-weightManh = 11
-weightManhH = 18
-
-5       1       2       3
-0       6       7       4
-9       10      11      8
-13      14      15      12
-x = 0 | y = 0
-h = 6
-steps = 5
-manh = 6
-weight = 11
-weightManh = 11
-weightManhH = 17
-
-0       1       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 6
-manh = 5
-weight = 11
-weightManh = 11
-weightManhH = 16
-
-1       0       2       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 7
-manh = 4
-weight = 11
-weightManh = 11
-weightManhH = 15
-
-1       2       0       3
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 0
-h = 3
-steps = 8
-manh = 3
-weight = 11
-weightManh = 11
-weightManhH = 14
-
-1       2       3       0
-5       6       7       4
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 9
-manh = 2
-weight = 11
-weightManh = 11
-weightManhH = 13
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 10
-manh = 1
-weight = 11
-weightManh = 11
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 11
-manh = 0
-weight = 11
-weightManh = 11
-weightManhH = 11
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-5       1       2       3
-9       6       7       4
-13      10      11      8
-14      15      0       12
-x = 2 | y = 3
-h = 13
-steps = 0
-manh = 11
-weight = 13
-weightManh = 11
-weightManhH = 24
-
-*/
-
-
-//----------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------
-
-
-/*
-time for create task =  0
-
-
-										-----   Cmp by H
-time for aStar solving =        0.004
-Solution length = 12
-		list length = 3656
-x = 2 | y = 0
-h = 12
-steps = 0
-manh = 12
-weight = 12
-weightManh = 12
-weightManhH = 24
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      3.302
-Solution length = 12
-		list length = 3654
-x = 2 | y = 0
-h = 8
-steps = 0
-manh = 12
-weight = 8
-weightManh = 12
-weightManhH = 20
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-
-										-----   Cmp by Manh
-time for aStar solving =        0
-Solution length = 12
-		list length = 47
-x = 2 | y = 0
-h = 12
-steps = 0
-manh = 12
-weight = 12
-weightManh = 12
-weightManhH = 24
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      3.34
-Solution length = 12
-		list length = 45
-x = 2 | y = 0
-h = 8
-steps = 0
-manh = 12
-weight = 8
-weightManh = 12
-weightManhH = 20
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-
-										-----   Cmp by ManhH
-time for aStar solving =        0.001
-Solution length = 12
-		list length = 416
-x = 2 | y = 0
-h = 12
-steps = 0
-manh = 12
-weight = 12
-weightManh = 12
-weightManhH = 24
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-time for idaStar solving =      3.798
-Solution length = 12
-		list length = 130
-x = 2 | y = 0
-h = 8
-steps = 0
-manh = 12
-weight = 8
-weightManh = 12
-weightManhH = 20
-
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 0
-h = 9
-steps = 1
-manh = 11
-weight = 10
-weightManh = 12
-weightManhH = 21
-
-1       6       2       0
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 3 | y = 1
-h = 7
-steps = 2
-manh = 10
-weight = 9
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       3       11      0
-9       10      8       7
-13      14      15      12
-x = 3 | y = 2
-h = 8
-steps = 3
-manh = 9
-weight = 11
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      8       0
-13      14      15      12
-x = 2 | y = 2
-h = 8
-steps = 4
-manh = 8
-weight = 12
-weightManh = 12
-weightManhH = 20
-
-1       6       2       4
-5       3       11      7
-9       10      0       8
-13      14      15      12
-x = 2 | y = 1
-h = 6
-steps = 5
-manh = 7
-weight = 11
-weightManh = 12
-weightManhH = 18
-
-1       6       2       4
-5       3       0       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 1
-h = 7
-steps = 6
-manh = 6
-weight = 13
-weightManh = 12
-weightManhH = 19
-
-1       6       2       4
-5       0       3       7
-9       10      11      8
-13      14      15      12
-x = 1 | y = 0
-h = 5
-steps = 7
-manh = 5
-weight = 12
-weightManh = 12
-weightManhH = 17
-
-1       0       2       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 0
-h = 4
-steps = 8
-manh = 4
-weight = 12
-weightManh = 12
-weightManhH = 16
-
-1       2       0       4
-5       6       3       7
-9       10      11      8
-13      14      15      12
-x = 2 | y = 1
-h = 3
-steps = 9
-manh = 3
-weight = 12
-weightManh = 12
-weightManhH = 15
-
-1       2       3       4
-5       6       0       7
-9       10      11      8
-13      14      15      12
-x = 3 | y = 1
-h = 2
-steps = 10
-manh = 2
-weight = 12
-weightManh = 12
-weightManhH = 14
-
-1       2       3       4
-5       6       7       0
-9       10      11      8
-13      14      15      12
-x = 3 | y = 2
-h = 1
-steps = 11
-manh = 1
-weight = 12
-weightManh = 12
-weightManhH = 13
-
-1       2       3       4
-5       6       7       8
-9       10      11      0
-13      14      15      12
-x = 3 | y = 3
-h = 0
-steps = 12
-manh = 0
-weight = 12
-weightManh = 12
-weightManhH = 12
-
-1       2       3       4
-5       6       7       8
-9       10      11      12
-13      14      15      0
-						---------------------
-1       6       0       2
-5       3       11      4
-9       10      8       7
-13      14      15      12
-x = 2 | y = 0
-h = 12
-steps = 0
-manh = 12
-weight = 12
-weightManh = 12
-weightManhH = 24
-
-Для продолжения нажмите любую клавишу . . .
 */
