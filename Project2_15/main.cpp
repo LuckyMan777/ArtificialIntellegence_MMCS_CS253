@@ -593,14 +593,16 @@ int main()
 	int max_bound = 50;
 	int complexity = 45;
 
-	Board* b = createTaskTime(complexity);
+	Board* b1 = createTaskTime(complexity);
 
-	vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
-	//vector<int> v1{ 10, 6, 4, 13, 8, 11, 3, 9, 1, 5, 14, 12, 0, 2, 15, 7 };
+	//vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+	vector<int> v1{ 5, 1, 7, 4, 0, 13, 6, 12, 9, 3, 10, 2, 14, 8, 11, 15 };
 
 	Board* b2 = new Board(v1);
+
+	Board* b = b2;
 	
-	if (b2->have_solution())
+	if (b->have_solution())
 	{
 		//simpleSolutionTime(b, false, false);
 
