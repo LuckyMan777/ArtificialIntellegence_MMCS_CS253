@@ -8,6 +8,7 @@
 #include<iterator>
 #include<string>
 #include<set>
+#include<unordered_set>
 
 using namespace std;
 
@@ -69,7 +70,7 @@ public:
 		for (auto it = board.begin(); it != std::prev(board.end(), 1); ++it)
 		{
 			sum += count_if(next(it, 1), board.end(),
-				[it](int i) {return i !=0 && *it > i; });
+				[it](int i) {return i != 0 && *it > i; });
 		}
 
 		return (sum % 2 == 0);
@@ -590,13 +591,15 @@ void runCmpBy(Board* b, function<bool(Board*, Board*)> cmpBoards, function<int(B
 
 int main()
 {
-	int max_bound = 50;
-	int complexity = 45;
+	int max_bound = 70;
+	int complexity = 55;
 
 	Board* b1 = createTaskTime(complexity);
 
 	//vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
-	vector<int> v1{ 5, 1, 7, 4, 0, 13, 6, 12, 9, 3, 10, 2, 14, 8, 11, 15 };
+	//vector<int> v1{ 5, 1, 7, 4, 0, 13, 6, 12, 9, 3, 10, 2, 14, 8, 11, 15 };
+	//vector<int> v1{ 6, 7, 3, 10, 5, 1, 8, 2, 9, 15, 12, 4, 13, 11, 14, 0 };	//	Manh 38 steps, 1.8 seconds
+	vector<int> v1{ 13, 8, 9, 2, 0, 7, 1, 12, 4, 6, 5, 3, 14, 11, 15, 10 };		//	Manh 45 steps, 1 second
 
 	Board* b2 = new Board(v1);
 
@@ -606,7 +609,7 @@ int main()
 	{
 		//simpleSolutionTime(b, false, false);
 
-		cout << endl << "					-----	Cmp by H" << endl;
+		//cout << endl << "					-----	Cmp by H" << endl;
 		//runCmpBy(b, compH, [](Board* b) {return b->weightH(); }, max_bound, false, false);
 		
 		cout << endl << "					-----	Cmp by Manh" << endl;
