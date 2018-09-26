@@ -450,7 +450,7 @@ void idaStarStep(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoa
 		if (pb->h == 0)
 		{
 			last_b = pb;
-			set_len = used.size();
+			set_len += used.size();
 			break;
 		}
 
@@ -464,7 +464,7 @@ void idaStarStep(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoa
 			if (b2->h == 0)
 			{
 				last_b = b2;
-				set_len = used.size();
+				set_len += used.size();
 				founded = true;
 				break;
 			}
@@ -477,6 +477,8 @@ void idaStarStep(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoa
 			}
 		}
 	}
+	if (last_b == nullptr)
+		set_len += used.size();
 			//if (pq.empty() && !founded)
 			//cout << endl << "	not founded on this step" << endl << endl;
 	
@@ -487,6 +489,7 @@ void idaStarSolution(Board* b2, function<bool(Board*, Board*)> cmpBoards, functi
 	last_b = nullptr;
 	int curr_bound = weight(b2);
 
+	set_len = 0;
 	while (last_b == nullptr)
 	{
 		++curr_bound;
@@ -498,6 +501,7 @@ void printSolution(bool print_board, bool print_info)
 {
 	list<Board*> ln;
 
+	last_b->printInfo();
 	while (last_b != nullptr)
 	{
 		ln.push_front(last_b);
@@ -591,12 +595,12 @@ void runCmpBy(Board* b, function<bool(Board*, Board*)> cmpBoards, function<int(B
 	bool print_boards, bool print_info)
 {
 	aStarSolutionTime(b, cmpBoards, print_boards, print_info);
-	idaStarSolutionTime(b, cmpBoards, weight, print_boards, print_info);
+	//idaStarSolutionTime(b, cmpBoards, weight, print_boards, print_info);
 }
 
 int main()
 {
-	int complexity = 10;
+	int complexity = 50;
 
 	Board* b1 = createTaskTime(complexity);
 
@@ -604,24 +608,24 @@ int main()
 	//vector<int> v1{ 5, 1, 7, 4, 0, 13, 6, 12, 9, 3, 10, 2, 14, 8, 11, 15 };
 	//vector<int> v1{ 6, 7, 3, 10, 5, 1, 8, 2, 9, 15, 12, 4, 13, 11, 14, 0 };	//	Manh 38 steps, 1.8 seconds
 	//vector<int> v1{ 13, 8, 9, 2, 0, 7, 1, 12, 4, 6, 5, 3, 14, 11, 15, 10 };		//	Manh 45 steps, 1 second
-	vector<int> v1{ 1, 4, 3, 2, 5, 6, 12, 8, 9, 10, 11, 7, 13, 14, 15, 0 };
+	vector<int> v1{ 14, 10, 15, 4, 12, 11, 1, 6, 3, 9, 13, 2, 8, 5, 7, 0 };
 
 	Board* b2 = new Board(v1);
 
-	Board* b = b1;
+	Board* b = b2;
 	
 	if (b->have_solution())
 	{
-		//simpleSolutionTime(b, false, false);
+		//simpleSolutionTime(b, false, false); // 17
 
 		//cout << endl << "					-----	Cmp by H" << endl;
-		//runCmpBy(b, compH, [](Board* b) {return b->weightH(); }, max_bound, false, false);
-		
-		cout << endl << "					-----	Cmp by Manh" << endl;
-		runCmpBy(b, compManh, [](Board* b) {return b->weightManh(); }, false, false);
+		//runCmpBy(b, compH, [](Board* b) {return b->weightH(); }, false, false); // 30
+
+		//cout << endl << "					-----	Cmp by Manh" << endl;
+		//runCmpBy(b, compManh, [](Board* b) {return b->weightManh(); }, false, false); // 50
 		
 		//cout << endl << "					-----	Cmp by ManhH" << endl;
-		//runCmpBy(b, compManhH, [](Board* b) {return b->weightManhH(); }, max_bound, false, false);
+		runCmpBy(b, compManhH, [](Board* b) {return b->weightManhH(); }, false, false);
 
 
 		b->printBoard();
