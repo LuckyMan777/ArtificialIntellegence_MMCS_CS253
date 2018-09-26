@@ -72,8 +72,9 @@ public:
 			sum += count_if(next(it, 1), board.end(),
 				[it](int i) {return i != 0 && *it > i; });
 		}
+		sum += zeroY;
 
-		return (sum % 2 == 0);
+		return (sum % 2);
 	}
 
 	int weightH()
@@ -322,7 +323,7 @@ Board* createTask(int cnt_steps)
 }
 
 Board* last_b;
-size_t list_len;
+size_t set_len;
 
 void simpleSolution(Board* b)
 {
@@ -344,7 +345,7 @@ void simpleSolution(Board* b)
 		if (pb->h == 0)
 		{
 			last_b = pb;
-			list_len = ln.size();
+			set_len = used.size();
 			break;
 		}
 
@@ -357,7 +358,7 @@ void simpleSolution(Board* b)
 			if (b2->h == 0)
 			{
 				last_b = b2;
-				list_len = ln.size();
+				set_len = used.size();
 				founded = true;
 				break;
 			}
@@ -394,7 +395,7 @@ void aStarSolution(Board* b, function<bool(Board*, Board*)> compBoards)
 		if (pb->h == 0)
 		{
 			last_b = pb;
-			list_len = pq.size();
+			set_len = used.size();
 			break;
 		}
 
@@ -408,7 +409,7 @@ void aStarSolution(Board* b, function<bool(Board*, Board*)> compBoards)
 			if (b2->h == 0)
 			{
 				last_b = b2;
-				list_len = pq.size();
+				set_len = used.size();
 				founded = true;
 				break;
 			}
@@ -425,7 +426,7 @@ void aStarSolution(Board* b, function<bool(Board*, Board*)> compBoards)
 		cout << endl << "-----------	error	----------" << endl << endl;
 }
 
-void idaStarSolution(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight)
+void idaStarStep(Board* b2, int max_bound, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight)
 {
 	b2->steps = 0;
 	bool founded = false;
@@ -449,7 +450,7 @@ void idaStarSolution(Board* b2, int max_bound, function<bool(Board*, Board*)> cm
 		if (pb->h == 0)
 		{
 			last_b = pb;
-			list_len = pq.size();
+			set_len = used.size();
 			break;
 		}
 
@@ -463,7 +464,7 @@ void idaStarSolution(Board* b2, int max_bound, function<bool(Board*, Board*)> cm
 			if (b2->h == 0)
 			{
 				last_b = b2;
-				list_len = pq.size();
+				set_len = used.size();
 				founded = true;
 				break;
 			}
@@ -479,6 +480,18 @@ void idaStarSolution(Board* b2, int max_bound, function<bool(Board*, Board*)> cm
 			//if (pq.empty() && !founded)
 			//cout << endl << "	not founded on this step" << endl << endl;
 	
+}
+
+void idaStarSolution(Board* b2, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight)
+{
+	last_b = nullptr;
+	int curr_bound = weight(b2);
+
+	while (last_b == nullptr)
+	{
+		++curr_bound;
+		idaStarStep(b2, curr_bound, cmpBoards, weight);
+	}
 }
 
 void printSolution(bool print_board, bool print_info)
@@ -499,11 +512,6 @@ void printSolution(bool print_board, bool print_info)
 			b->printBoard();
 	}
 	cout << "			---------------------			" << endl;
-}
-
-void printLen()
-{
-	cout << "	list length = " << list_len << endl;
 }
 
 Board* createTaskTime(int complexity)
@@ -528,8 +536,8 @@ void simpleSolutionTime(Board* b, bool print_boards, bool print_info)
 
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for simple solving =	" << search_time << endl;
-
-	//printLen();
+	cout << "total states = " << set_len << endl;
+	
 	printSolution(print_boards, print_info);
 }
 
@@ -541,28 +549,25 @@ void aStarSolutionTime(Board* b, function<bool(Board*, Board*)> cmpBoards, bool 
 
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for aStar solving =	" << search_time << endl;
-	cout << "Solution length = " << last_b->steps << endl;
-
-	//printLen();
+	cout << "total states = " << set_len << endl;
+	
+	//cout << "Solution length = " << last_b->steps << endl;
 
 	printSolution(print_boards, print_info);
 }
 
-void idaStarSolutionTime(Board* b, int max_bound, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight, 
+void idaStarSolutionTime(Board* b, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight, 
 	bool print_boards, bool print_info)
 {
 	unsigned int start_time = clock();
-	idaStarSolution(b, max_bound, cmpBoards, weight);
+	idaStarSolution(b, cmpBoards, weight);
 	unsigned int end_time = clock();
 
 	double search_time = (end_time - start_time) / (double)CLOCKS_PER_SEC;
 	cout << "time for idaStar solving =	" << search_time << endl;
-	if (last_b == nullptr)
-		cout << "No solution for bound = " << max_bound << endl;
-	else
-		cout << "Solution length = " << last_b->steps << endl;
-
-	//printLen();
+	cout << "total states = " << set_len << endl;
+	
+	//cout << "Solution length = " << last_b->steps << endl;
 
 	printSolution(print_boards, print_info);
 }
@@ -583,27 +588,27 @@ bool compManhH(Board* b1, Board* b2)
 }
 
 void runCmpBy(Board* b, function<bool(Board*, Board*)> cmpBoards, function<int(Board*)> weight, 
-	int max_bound, bool print_boards, bool print_info)
+	bool print_boards, bool print_info)
 {
 	aStarSolutionTime(b, cmpBoards, print_boards, print_info);
-	idaStarSolutionTime(b, max_bound, cmpBoards, weight, print_boards, print_info);
+	idaStarSolutionTime(b, cmpBoards, weight, print_boards, print_info);
 }
 
 int main()
 {
-	int max_bound = 70;
-	int complexity = 55;
+	int complexity = 10;
 
 	Board* b1 = createTaskTime(complexity);
 
 	//vector<int> v1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
 	//vector<int> v1{ 5, 1, 7, 4, 0, 13, 6, 12, 9, 3, 10, 2, 14, 8, 11, 15 };
 	//vector<int> v1{ 6, 7, 3, 10, 5, 1, 8, 2, 9, 15, 12, 4, 13, 11, 14, 0 };	//	Manh 38 steps, 1.8 seconds
-	vector<int> v1{ 13, 8, 9, 2, 0, 7, 1, 12, 4, 6, 5, 3, 14, 11, 15, 10 };		//	Manh 45 steps, 1 second
+	//vector<int> v1{ 13, 8, 9, 2, 0, 7, 1, 12, 4, 6, 5, 3, 14, 11, 15, 10 };		//	Manh 45 steps, 1 second
+	vector<int> v1{ 1, 4, 3, 2, 5, 6, 12, 8, 9, 10, 11, 7, 13, 14, 15, 0 };
 
 	Board* b2 = new Board(v1);
 
-	Board* b = b2;
+	Board* b = b1;
 	
 	if (b->have_solution())
 	{
@@ -613,7 +618,7 @@ int main()
 		//runCmpBy(b, compH, [](Board* b) {return b->weightH(); }, max_bound, false, false);
 		
 		cout << endl << "					-----	Cmp by Manh" << endl;
-		runCmpBy(b, compManh, [](Board* b) {return b->weightManh(); }, max_bound, false, false);
+		runCmpBy(b, compManh, [](Board* b) {return b->weightManh(); }, false, false);
 		
 		//cout << endl << "					-----	Cmp by ManhH" << endl;
 		//runCmpBy(b, compManhH, [](Board* b) {return b->weightManhH(); }, max_bound, false, false);
